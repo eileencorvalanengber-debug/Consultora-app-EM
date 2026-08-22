@@ -20,7 +20,7 @@ export default async function LoginPage({
         </div>
 
         <h1 className="text-base font-semibold text-slate-900">Ingresar</h1>
-        <p className="mt-1 text-sm text-slate-500">Ingresá la contraseña compartida del equipo para continuar.</p>
+        <p className="mt-1 text-sm text-slate-500">Ingresa la contraseña compartida del equipo para continuar.</p>
 
         <form action={login} className="mt-4 space-y-3">
           <input type="hidden" name="from" value={from ?? "/"} />
@@ -34,7 +34,7 @@ export default async function LoginPage({
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
             />
           </div>
-          {error && <p className="text-sm text-red-600">Contraseña incorrecta. Probá de nuevo.</p>}
+          {error && <p className="text-sm text-red-600">Contraseña incorrecta. Prueba de nuevo.</p>}
           <button type="submit" className="w-full rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark">
             Ingresar
           </button>

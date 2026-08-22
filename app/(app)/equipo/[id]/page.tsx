@@ -15,7 +15,7 @@ export default async function EditarConsultorPage({ params }: { params: Promise<
     <div className="mx-auto max-w-xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Editar consultor/a</h1>
-        <p className="mt-1 text-sm text-slate-500">Actualizá los datos de {member.name}.</p>
+        <p className="mt-1 text-sm text-slate-500">Actualiza los datos de {member.name}.</p>
       </div>
 
       <Card>

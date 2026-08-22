@@ -16,7 +16,7 @@ export default async function NuevoProyectoPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Nuevo proyecto</h1>
-        <p className="mt-1 text-sm text-slate-500">Completá los datos para dar de alta un proyecto.</p>
+        <p className="mt-1 text-sm text-slate-500">Completa los datos para dar de alta un proyecto.</p>
       </div>
 
       <Card>
@@ -24,7 +24,7 @@ export default async function NuevoProyectoPage() {
         <form action={createProject} className="space-y-4 px-5 py-5">
           {clients.length === 0 ? (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-700">
-              Todavía no hay clientes cargados. Creá uno primero en la sección Clientes.
+              Todavía no hay clientes cargados. Crea uno primero en la sección Clientes.
             </p>
           ) : null}
 
