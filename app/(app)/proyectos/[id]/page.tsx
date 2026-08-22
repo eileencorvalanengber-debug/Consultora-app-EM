@@ -7,7 +7,7 @@ import { ProjectStatusSelect } from "@/components/ProjectStatusSelect";
 import { TaskStatusSelect } from "@/components/TaskStatusSelect";
 import { PROJECT_STATUS_COLOR, PROJECT_STATUS_LABEL, TASK_PRIORITY_COLOR, TASK_PRIORITY_LABEL } from "@/lib/labels";
 import { formatCurrency, formatDate, formatDateInput, formatHours } from "@/lib/format";
-import { addProjectMember, createTask, createTimeEntry, updateProjectProgress } from "@/lib/actions";
+import { addProjectMember, createTask, createTimeEntry, updateProjectBudget, updateProjectProgress } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +82,28 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           </form>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader title="Presupuesto y tarifa" subtitle="Horas, monto y tarifa horaria del proyecto" />
+        <form action={updateProjectBudget} className="flex flex-wrap items-end gap-3 px-5 py-4">
+          <input type="hidden" name="projectId" value={project.id} />
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Horas presupuestadas</label>
+            <input type="number" name="budgetHours" min={0} step={1} defaultValue={project.budgetHours} className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Presupuesto (CLP)</label>
+            <input type="number" name="budgetAmount" min={0} step={100000} defaultValue={project.budgetAmount} className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Tarifa horaria (CLP)</label>
+            <input type="number" name="hourlyRate" min={0} step={1000} defaultValue={project.hourlyRate} className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+          </div>
+          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
+            Guardar cambios
+          </button>
+        </form>
+      </Card>
 
       <Card>
         <CardHeader title="Equipo asignado" subtitle="Consultores y horas semanales asignadas" />

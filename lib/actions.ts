@@ -118,6 +118,21 @@ export async function updateProjectStatus(formData: FormData) {
   revalidatePath("/");
 }
 
+export async function updateProjectBudget(formData: FormData) {
+  const projectId = str(formData, "projectId");
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      budgetAmount: num(formData, "budgetAmount"),
+      budgetHours: num(formData, "budgetHours"),
+      hourlyRate: num(formData, "hourlyRate"),
+    },
+  });
+  revalidatePath(`/proyectos/${projectId}`);
+  revalidatePath("/proyectos");
+  revalidatePath("/");
+}
+
 export async function updateProjectProgress(formData: FormData) {
   const projectId = str(formData, "projectId");
   const progressPercent = Math.max(0, Math.min(100, num(formData, "progressPercent")));

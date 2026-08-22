@@ -78,12 +78,12 @@ export default async function NuevoProyectoPage() {
               <input type="number" name="budgetHours" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Presupuesto (USD)</label>
-              <input type="number" name="budgetAmount" min={0} step={100} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
+              <label className="mb-1 block text-sm font-medium text-slate-700">Presupuesto (CLP)</label>
+              <input type="number" name="budgetAmount" min={0} step={100000} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Tarifa horaria (USD)</label>
-              <input type="number" name="hourlyRate" min={0} step={5} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
+              <label className="mb-1 block text-sm font-medium text-slate-700">Tarifa horaria (CLP)</label>
+              <input type="number" name="hourlyRate" min={0} step={1000} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
           </div>
 
