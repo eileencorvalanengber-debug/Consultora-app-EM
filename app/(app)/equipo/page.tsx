@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -33,12 +34,19 @@ export default async function EquipoPage() {
                 <div key={m.id} className="px-5 py-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{m.name}</p>
+                      <Link href={`/equipo/${m.id}`} className="text-sm font-semibold text-slate-900 hover:text-brand-primary hover:underline">
+                        {m.name}
+                      </Link>
                       <p className="text-xs text-slate-500">{m.role}</p>
                     </div>
-                    <p className={`text-sm font-medium ${overloaded ? "text-red-600" : "text-slate-600"}`}>
-                      {activeLoad.toFixed(0)}h / {m.weeklyCapacityHours.toFixed(0)}h semana
-                    </p>
+                    <div className="flex items-center gap-3">
+                      <p className={`text-sm font-medium ${overloaded ? "text-red-600" : "text-slate-600"}`}>
+                        {activeLoad.toFixed(0)}h / {m.weeklyCapacityHours.toFixed(0)}h semana
+                      </p>
+                      <Link href={`/equipo/${m.id}`} className="text-xs font-medium text-brand-primary hover:underline">
+                        Editar
+                      </Link>
+                    </div>
                   </div>
                   <ProgressBar value={pct} className="mt-2" />
                   {overloaded && <p className="mt-1 text-xs font-medium text-red-600">Sobrecargado/a</p>}

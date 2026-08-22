@@ -66,6 +66,25 @@ export async function createTeamMember(formData: FormData) {
   revalidatePath("/equipo");
 }
 
+export async function updateTeamMember(formData: FormData) {
+  const teamMemberId = str(formData, "teamMemberId");
+  const name = str(formData, "name");
+  if (!teamMemberId || !name) throw new Error("El nombre es obligatorio");
+
+  await prisma.teamMember.update({
+    where: { id: teamMemberId },
+    data: {
+      name,
+      email: str(formData, "email") || null,
+      role: str(formData, "role") || "Consultor/a",
+      weeklyCapacityHours: num(formData, "weeklyCapacityHours") || 40,
+    },
+  });
+
+  revalidatePath("/equipo");
+  redirect("/equipo");
+}
+
 export async function createProject(formData: FormData) {
   const name = str(formData, "name");
   const clientId = str(formData, "clientId");
