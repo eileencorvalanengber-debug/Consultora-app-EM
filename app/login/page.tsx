@@ -12,9 +12,9 @@ export default async function LoginPage({
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 flex items-center gap-2.5">
-          <Image src="/brand/logo_icon.png" alt="EducaMente" width={32} height={29} className="h-8 w-auto" priority />
+          <Image src="/brand/logo_icon.png" alt="EDUCAMENTE" width={32} height={29} className="h-8 w-auto" priority />
           <div>
-            <p className="text-sm font-semibold text-slate-900">EducaMente</p>
+            <p className="text-sm font-semibold text-slate-900">EDUCAMENTE</p>
             <p className="text-xs text-slate-500">Gestión de proyectos</p>
           </div>
         </div>

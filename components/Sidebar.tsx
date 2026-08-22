@@ -18,9 +18,9 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <Image src="/brand/logo_icon.png" alt="EducaMente" width={32} height={29} className="h-8 w-auto" priority />
+        <Image src="/brand/logo_icon.png" alt="EDUCAMENTE" width={32} height={29} className="h-8 w-auto" priority />
         <div>
-          <p className="text-sm font-semibold text-slate-900">EducaMente</p>
+          <p className="text-sm font-semibold text-slate-900">EDUCAMENTE</p>
           <p className="text-xs text-slate-500">Gestión de proyectos</p>
         </div>
       </div>
