@@ -27,12 +27,17 @@ export default async function ClientesPage() {
                 <div key={c.id} className="px-5 py-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{c.name}</p>
+                      <Link href={`/clientes/${c.id}`} className="text-sm font-semibold text-slate-900 hover:text-brand-primary hover:underline">
+                        {c.name}
+                      </Link>
                       {c.industry && <p className="text-xs text-slate-500">{c.industry}</p>}
                     </div>
-                    <Link href={`/proyectos?cliente=${c.id}`} className="text-xs font-medium text-brand-primary hover:underline">
-                      {activeCount} proyecto(s) activo(s)
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-slate-500">{activeCount} proyecto(s) activo(s)</span>
+                      <Link href={`/clientes/${c.id}`} className="text-xs font-medium text-brand-primary hover:underline">
+                        Editar
+                      </Link>
+                    </div>
                   </div>
                   {(c.contactName || c.contactEmail || c.contactPhone) && (
                     <p className="mt-1.5 text-xs text-slate-500">

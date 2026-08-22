@@ -30,6 +30,26 @@ export async function createClient(formData: FormData) {
   revalidatePath("/clientes");
 }
 
+export async function updateClient(formData: FormData) {
+  const clientId = str(formData, "clientId");
+  const name = str(formData, "name");
+  if (!clientId || !name) throw new Error("El nombre del cliente es obligatorio");
+
+  await prisma.client.update({
+    where: { id: clientId },
+    data: {
+      name,
+      industry: str(formData, "industry") || null,
+      contactName: str(formData, "contactName") || null,
+      contactEmail: str(formData, "contactEmail") || null,
+      contactPhone: str(formData, "contactPhone") || null,
+    },
+  });
+
+  revalidatePath("/clientes");
+  redirect("/clientes");
+}
+
 export async function createTeamMember(formData: FormData) {
   const name = str(formData, "name");
   if (!name) throw new Error("El nombre es obligatorio");
