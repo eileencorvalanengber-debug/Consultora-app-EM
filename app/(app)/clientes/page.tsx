@@ -30,7 +30,7 @@ export default async function ClientesPage() {
                       <p className="text-sm font-semibold text-slate-900">{c.name}</p>
                       {c.industry && <p className="text-xs text-slate-500">{c.industry}</p>}
                     </div>
-                    <Link href={`/proyectos?cliente=${c.id}`} className="text-xs font-medium text-blue-600 hover:underline">
+                    <Link href={`/proyectos?cliente=${c.id}`} className="text-xs font-medium text-brand-primary hover:underline">
                       {activeCount} proyecto(s) activo(s)
                     </Link>
                   </div>
@@ -71,7 +71,7 @@ export default async function ClientesPage() {
               <label className="mb-1 block text-xs font-medium text-slate-600">Teléfono</label>
               <input name="contactPhone" className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
-            <button type="submit" className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <button type="submit" className="w-full rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark">
               Crear cliente
             </button>
           </form>

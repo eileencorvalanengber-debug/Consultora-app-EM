@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { login } from "@/lib/auth-actions";
 
 export default async function LoginPage({
@@ -10,12 +11,10 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
       <div className="w-full max-w-sm rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-6 flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
-            C
-          </div>
+        <div className="mb-6 flex items-center gap-2.5">
+          <Image src="/brand/logo_icon.png" alt="EducaMente" width={32} height={29} className="h-8 w-auto" priority />
           <div>
-            <p className="text-sm font-semibold text-slate-900">Consultora</p>
+            <p className="text-sm font-semibold text-slate-900">EducaMente</p>
             <p className="text-xs text-slate-500">Gestión de proyectos</p>
           </div>
         </div>
@@ -36,7 +35,7 @@ export default async function LoginPage({
             />
           </div>
           {error && <p className="text-sm text-red-600">Contraseña incorrecta. Probá de nuevo.</p>}
-          <button type="submit" className="w-full rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+          <button type="submit" className="w-full rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-dark">
             Ingresar
           </button>
         </form>

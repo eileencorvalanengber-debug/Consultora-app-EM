@@ -118,7 +118,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <label className="mb-1 block text-xs font-medium text-slate-600">Horas/semana</label>
             <input type="number" name="allocationHoursPerWeek" min={0} step={1} defaultValue={10} className="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           </div>
-          <button type="submit" className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
             Asignar
           </button>
         </form>
@@ -171,7 +171,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <label className="mb-1 block text-xs font-medium text-slate-600">Vencimiento</label>
             <input type="date" name="dueDate" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           </div>
-          <button type="submit" className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
             Agregar tarea
           </button>
         </form>
@@ -228,7 +228,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
             <input type="checkbox" name="billable" defaultChecked /> Facturable
           </label>
-          <button type="submit" className="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800">
+          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
             Cargar horas
           </button>
         </form>

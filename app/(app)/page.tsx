@@ -105,7 +105,7 @@ export default async function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader title="Alertas" subtitle="Vencimientos, presupuesto, inactividad y carga del equipo" action={<Link href="/proyectos" className="text-xs font-medium text-blue-600 hover:underline">Ver proyectos</Link>} />
+          <CardHeader title="Alertas" subtitle="Vencimientos, presupuesto, inactividad y carga del equipo" action={<Link href="/proyectos" className="text-xs font-medium text-brand-primary hover:underline">Ver proyectos</Link>} />
           <div className="max-h-96 overflow-y-auto">
             <AlertsList alerts={alerts} />
           </div>
@@ -135,7 +135,7 @@ export default async function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader title="Próximos vencimientos" subtitle="Proyectos activos ordenados por fecha de fin" action={<Link href="/proyectos" className="text-xs font-medium text-blue-600 hover:underline">Ver todos</Link>} />
+        <CardHeader title="Próximos vencimientos" subtitle="Proyectos activos ordenados por fecha de fin" action={<Link href="/proyectos" className="text-xs font-medium text-brand-primary hover:underline">Ver todos</Link>} />
         <ProjectsTable projects={projectRows} />
       </Card>
     </div>

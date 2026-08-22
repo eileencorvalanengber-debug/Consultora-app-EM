@@ -31,7 +31,7 @@ export default async function ProyectosPage() {
         </div>
         <Link
           href="/proyectos/nuevo"
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
         >
           + Nuevo proyecto
         </Link>

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/lib/auth-actions";
@@ -16,12 +17,10 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-900 text-sm font-bold text-white">
-          C
-        </div>
+      <div className="flex items-center gap-2.5 px-5 py-5">
+        <Image src="/brand/logo_icon.png" alt="EducaMente" width={32} height={29} className="h-8 w-auto" priority />
         <div>
-          <p className="text-sm font-semibold text-slate-900">Consultora</p>
+          <p className="text-sm font-semibold text-slate-900">EducaMente</p>
           <p className="text-xs text-slate-500">Gestión de proyectos</p>
         </div>
       </div>
@@ -35,7 +34,7 @@ export function Sidebar() {
               href={item.href}
               className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? "bg-slate-900 text-white"
+                  ? "bg-brand-primary text-white"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               }`}
             >

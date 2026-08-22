@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Consultora | Gestión de proyectos",
+  title: "EducaMente | Gestión de proyectos",
   description: "Dashboard interno de proyectos, alertas y equipo",
 };
 
