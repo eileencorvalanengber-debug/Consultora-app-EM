@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ProjectStatus, TaskPriority, TaskStatus } from "@prisma/client";
+import type { ProjectStatus, Sentido, TaskPriority, TaskStatus } from "@prisma/client";
 
 function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
@@ -39,6 +39,32 @@ export async function upsertKpiMeasurement(formData: FormData) {
 
   revalidatePath("/indicadores");
   revalidatePath("/indicadores/seguimiento");
+}
+
+export async function updateStrategicObjective(formData: FormData) {
+  const objectiveId = str(formData, "objectiveId");
+  const objective = str(formData, "objective");
+  const kpiName = str(formData, "kpiName");
+  if (!objectiveId || !objective || !kpiName) throw new Error("Faltan datos");
+
+  await prisma.strategicObjective.update({
+    where: { id: objectiveId },
+    data: {
+      objective,
+      kpiName,
+      unit: str(formData, "unit") || "%",
+      targetValue: num(formData, "targetValue"),
+      sentido: str(formData, "sentido") as Sentido,
+      frequency: str(formData, "frequency") || "Mensual",
+      responsible: str(formData, "responsible") || "Sin asignar",
+      justification: str(formData, "justification") || null,
+      priorityInitiative: str(formData, "priorityInitiative") || null,
+    },
+  });
+
+  revalidatePath("/indicadores");
+  revalidatePath("/indicadores/seguimiento");
+  redirect("/indicadores");
 }
 
 export async function createClient(formData: FormData) {

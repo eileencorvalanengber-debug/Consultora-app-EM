@@ -91,6 +91,7 @@ export default async function IndicadoresPage() {
                 <th className="px-5 py-3 font-medium">Cumplimiento</th>
                 <th className="px-5 py-3 font-medium">Estado</th>
                 <th className="px-5 py-3 font-medium">Responsable</th>
+                <th className="px-5 py-3 font-medium"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -113,6 +114,11 @@ export default async function IndicadoresPage() {
                     <Badge className={ESTADO_COLOR[estado as Estado]}>{ESTADO_LABEL[estado as Estado]}</Badge>
                   </td>
                   <td className="px-5 py-3 text-slate-600">{obj.responsible}</td>
+                  <td className="px-5 py-3">
+                    <Link href={`/indicadores/${obj.id}`} className="text-xs font-medium text-brand-primary hover:underline">
+                      Editar
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
