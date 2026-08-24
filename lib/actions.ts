@@ -13,6 +13,34 @@ function num(fd: FormData, key: string): number {
   return Number.isFinite(v) ? v : 0;
 }
 
+export async function upsertKpiMeasurement(formData: FormData) {
+  const objectiveId = str(formData, "objectiveId");
+  const year = Math.trunc(num(formData, "year"));
+  const month = Math.trunc(num(formData, "month"));
+  if (!objectiveId || !year || !month) throw new Error("Faltan datos");
+
+  const resultRaw = str(formData, "resultValue");
+  const comment = str(formData, "comment");
+
+  await prisma.kpiMeasurement.upsert({
+    where: { objectiveId_year_month: { objectiveId, year, month } },
+    update: {
+      resultValue: resultRaw === "" ? null : Number(resultRaw),
+      comment: comment || null,
+    },
+    create: {
+      objectiveId,
+      year,
+      month,
+      resultValue: resultRaw === "" ? null : Number(resultRaw),
+      comment: comment || null,
+    },
+  });
+
+  revalidatePath("/indicadores");
+  revalidatePath("/indicadores/seguimiento");
+}
+
 export async function createClient(formData: FormData) {
   const name = str(formData, "name");
   if (!name) throw new Error("El nombre del cliente es obligatorio");

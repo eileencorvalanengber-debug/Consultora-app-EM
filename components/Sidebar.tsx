@@ -11,6 +11,7 @@ const NAV = [
   { href: "/proyectos", label: "Proyectos", icon: "📁" },
   { href: "/clientes", label: "Clientes", icon: "🤝" },
   { href: "/equipo", label: "Equipo", icon: "👥" },
+  { href: "/indicadores", label: "Indicadores", icon: "📈" },
 ];
 
 export function Sidebar() {

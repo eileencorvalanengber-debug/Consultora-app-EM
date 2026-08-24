@@ -28,6 +28,18 @@ enum TaskPriority {
   ALTA
 }
 
+enum Perspective {
+  FINANCIERA
+  CLIENTES
+  PROCESOS_INTERNOS
+  APRENDIZAJE_CRECIMIENTO
+}
+
+enum Sentido {
+  MAYOR
+  MENOR
+}
+
 model Client {
   id           String    @id @default(cuid())
   name         String
@@ -102,6 +114,37 @@ model Task {
   updatedAt   DateTime     @updatedAt
 
   timeEntries TimeEntry[]
+}
+
+model StrategicObjective {
+  id                 String      @id
+  perspective        Perspective
+  objective          String
+  kpiName            String
+  unit               String
+  targetValue        Float
+  sentido            Sentido
+  frequency          String
+  responsible        String
+  justification      String?
+  priorityInitiative String?
+  order              Int         @default(0)
+
+  measurements KpiMeasurement[]
+}
+
+model KpiMeasurement {
+  id          String             @id @default(cuid())
+  objectiveId String
+  objective   StrategicObjective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  year        Int
+  month       Int
+  resultValue Float?
+  comment     String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([objectiveId, year, month])
 }
 
 model TimeEntry {

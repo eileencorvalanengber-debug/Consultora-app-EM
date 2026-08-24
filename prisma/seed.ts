@@ -1,4 +1,5 @@
 import { PrismaClient, ProjectStatus, TaskPriority, TaskStatus } from "@prisma/client";
+import { BSC_OBJECTIVES } from "./bsc-seed-data";
 
 const prisma = new PrismaClient();
 
@@ -35,6 +36,8 @@ async function addWeeklyEntries(
 
 async function main() {
   console.log("Limpiando base de datos...");
+  await prisma.kpiMeasurement.deleteMany();
+  await prisma.strategicObjective.deleteMany();
   await prisma.timeEntry.deleteMany();
   await prisma.task.deleteMany();
   await prisma.projectMember.deleteMany();
@@ -274,6 +277,9 @@ async function main() {
       { projectId: p6.id, title: "Entrega final del plan estratégico", status: TaskStatus.COMPLETADA, priority: TaskPriority.ALTA, dueDate: daysFromNow(-32), assigneeId: nicolas.id },
     ],
   });
+
+  console.log("Creando indicadores estratégicos (BSC)...");
+  await prisma.strategicObjective.createMany({ data: BSC_OBJECTIVES });
 
   console.log("Seed completado.");
 }
