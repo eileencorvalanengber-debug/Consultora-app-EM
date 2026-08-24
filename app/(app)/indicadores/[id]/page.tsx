@@ -19,7 +19,7 @@ export default async function EditarIndicadorPage({ params }: { params: Promise<
           {objective.id} · {PERSPECTIVE_LABEL[objective.perspective]}
         </p>
         <h1 className="text-xl font-semibold text-slate-900">Editar indicador</h1>
-        <p className="mt-1 text-sm text-slate-500">Ajustá el objetivo, la meta u otros datos a medida que evolucione la estrategia.</p>
+        <p className="mt-1 text-sm text-slate-500">Ajusta el objetivo, la meta u otros datos a medida que evolucione la estrategia.</p>
       </div>
 
       <Card>
