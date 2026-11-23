@@ -9,6 +9,7 @@ import { BudgetUsageChart } from "@/components/charts/BudgetUsageChart";
 import { formatCurrency, formatHours } from "@/lib/format";
 import Link from "next/link";
 import { requireAuth } from "@/lib/dal";
+import { estimatedRevenue as calcRevenue } from "@/lib/budget";
 
 const STATUS_COLORS: Record<string, string> = {
   PLANIFICACION: "#94a3b8",
@@ -32,7 +33,7 @@ export default async function DashboardPage() {
   await requireAuth();
   const [projects, alerts] = await Promise.all([
     prisma.project.findMany({
-      include: { client: true, timeEntries: true },
+      include: { client: true, timeEntries: true, budgetItems: true },
       orderBy: { endDate: "asc" },
     }),
     getAlerts(),
@@ -48,10 +49,7 @@ export default async function DashboardPage() {
     .filter((e) => e.date >= thirtyDaysAgo)
     .reduce((s, e) => s + e.hours, 0);
 
-  const estimatedRevenue = projects.reduce((sum, p) => {
-    const billable = p.timeEntries.filter((e) => e.billable).reduce((s, e) => s + e.hours, 0);
-    return sum + billable * p.hourlyRate;
-  }, 0);
+  const estimatedRevenue = projects.reduce((sum, p) => sum + calcRevenue(p.timeEntries, p.budgetItems, p.hourlyRate), 0);
 
   const criticalAlerts = alerts.filter((a) => a.severity === "critica").length;
 

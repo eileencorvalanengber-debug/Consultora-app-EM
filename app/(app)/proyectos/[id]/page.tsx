@@ -8,7 +8,8 @@ import { TaskStatusSelect } from "@/components/TaskStatusSelect";
 import { PROJECT_STATUS_COLOR, PROJECT_STATUS_LABEL, TASK_PRIORITY_COLOR, TASK_PRIORITY_LABEL } from "@/lib/labels";
 import { formatCurrency, formatDate, formatDateInput, formatHours } from "@/lib/format";
 import { requireAuth } from "@/lib/dal";
-import { addProjectMember, createTask, createTimeEntry, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
+import { estimatedRevenue as calcRevenue, hoursByItem, totalsFromItems } from "@/lib/budget";
+import { addBudgetItem, addProjectMember, createTask, createTimeEntry, deleteBudgetItem, updateBudgetItem, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
 
 const INPUT = "rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
 const LABEL = "mb-1 block text-xs font-medium text-slate-600";
@@ -27,7 +28,8 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
       client: true,
       members: { include: { teamMember: true } },
       tasks: { include: { assignee: true }, orderBy: [{ status: "asc" }, { dueDate: "asc" }] },
-      timeEntries: { include: { teamMember: true, task: true }, orderBy: { date: "desc" } },
+      timeEntries: { include: { teamMember: true, task: true, budgetItem: true }, orderBy: { date: "desc" } },
+      budgetItems: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] },
     },
   });
 
@@ -37,8 +39,11 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
 
   const hoursUsed = project.timeEntries.reduce((s, e) => s + e.hours, 0);
   const budgetPct = project.budgetHours > 0 ? (hoursUsed / project.budgetHours) * 100 : 0;
-  const billableHours = project.timeEntries.filter((e) => e.billable).reduce((s, e) => s + e.hours, 0);
-  const estimatedRevenue = billableHours * project.hourlyRate;
+  const itemTotals = totalsFromItems(project.budgetItems);
+  const usedByItem = hoursByItem(project.timeEntries);
+  const hoursWithoutItem = usedByItem.get(null) ?? 0;
+  const estimatedRevenue = calcRevenue(project.timeEntries, project.budgetItems, itemTotals.avgRate);
+  const budgetGap = project.budgetAmount - itemTotals.value; // presupuesto del proyecto vs valor de las horas
   const assignedMemberIds = new Set(project.members.map((m) => m.teamMemberId));
 
   return (
@@ -91,24 +96,111 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
       </div>
 
       <Card>
-        <CardHeader title="Presupuesto y tarifa" subtitle="Horas, monto y tarifa horaria del proyecto" />
+        <CardHeader title="Presupuesto del proyecto" subtitle="Monto total acordado con el cliente (CLP)" />
         <form action={updateProjectBudget} className="flex flex-wrap items-end gap-3 px-5 py-4">
           <input type="hidden" name="projectId" value={project.id} />
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Horas presupuestadas</label>
-            <input type="number" name="budgetHours" min={0} step="any" defaultValue={project.budgetHours} className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <label className={LABEL}>Presupuesto (CLP)</label>
+            <input type="number" name="budgetAmount" min={0} step={1} defaultValue={project.budgetAmount} className={`w-44 ${INPUT}`} />
+          </div>
+          <button type="submit" className={SAVE_BTN}>Guardar cambios</button>
+        </form>
+        {project.budgetItems.length > 0 && project.budgetAmount > 0 && (
+          <p className={`border-t border-slate-100 px-5 py-3 text-xs ${budgetGap < 0 ? "text-red-600" : "text-slate-500"}`}>
+            Valor de las horas por ítem: {formatCurrency(itemTotals.value)} ·{" "}
+            {budgetGap >= 0
+              ? `queda un margen de ${formatCurrency(budgetGap)} sobre el presupuesto`
+              : `las horas valorizadas superan el presupuesto por ${formatCurrency(-budgetGap)}`}
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Horas presupuestadas por ítem" subtitle="Cada ítem tiene su propia tarifa horaria (diseño, gestión, mejoras…)" />
+        <div className="divide-y divide-slate-100">
+          {project.budgetItems.map((item) => {
+            const used = usedByItem.get(item.id) ?? 0;
+            const pct = item.hours > 0 ? (used / item.hours) * 100 : used > 0 ? 100 : 0;
+            const over = item.hours > 0 ? used > item.hours : used > 0;
+            return (
+              <div key={item.id} className="px-5 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium text-slate-900">{item.name}</p>
+                  <p className="text-slate-600">
+                    <span className={over ? "font-semibold text-red-600" : ""}>{formatHours(used)}</span> / {formatHours(item.hours)}
+                    <span className="mx-2 text-slate-300">·</span>
+                    {formatCurrency(item.hourlyRate)}/h
+                    <span className="mx-2 text-slate-300">·</span>
+                    {formatCurrency(item.hours * item.hourlyRate)}
+                  </p>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className={`h-full rounded-full ${over ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                </div>
+                <details className="mt-2">
+                  <summary className={EDIT_SUMMARY}>Editar</summary>
+                  <form action={updateBudgetItem} className="mt-2 flex flex-wrap items-end gap-3">
+                    <input type="hidden" name="itemId" value={item.id} />
+                    <input type="hidden" name="projectId" value={project.id} />
+                    <div>
+                      <label className={LABEL}>Ítem</label>
+                      <input name="name" required defaultValue={item.name} className={INPUT} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Horas</label>
+                      <input type="number" name="hours" min={0} step="any" defaultValue={item.hours} className={`w-24 ${INPUT}`} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Tarifa horaria (CLP)</label>
+                      <input type="number" name="hourlyRate" min={0} step={1} defaultValue={item.hourlyRate} className={`w-36 ${INPUT}`} />
+                    </div>
+                    <button type="submit" className={SAVE_BTN}>Guardar</button>
+                  </form>
+                  <form action={deleteBudgetItem} className="mt-2">
+                    <input type="hidden" name="itemId" value={item.id} />
+                    <input type="hidden" name="projectId" value={project.id} />
+                    <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                      Eliminar ítem (las horas ya cargadas se conservan, quedan sin ítem)
+                    </button>
+                  </form>
+                </details>
+              </div>
+            );
+          })}
+          {project.budgetItems.length === 0 && (
+            <p className="px-5 py-6 text-center text-sm text-slate-500">Todavía no hay ítems. Agrega el primero abajo (por ejemplo, “Diseño”).</p>
+          )}
+          {project.budgetItems.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-5 py-3 text-sm font-medium text-slate-800">
+              <span>Total</span>
+              <span>
+                {formatHours(hoursUsed)} / {formatHours(itemTotals.hours)}
+                <span className="mx-2 text-slate-300">·</span>
+                {formatCurrency(itemTotals.value)}
+              </span>
+            </div>
+          )}
+          {hoursWithoutItem > 0 && project.budgetItems.length > 0 && (
+            <p className="px-5 py-2.5 text-xs text-amber-700">
+              {formatHours(hoursWithoutItem)} cargadas sin ítem: se valorizan a la tarifa promedio ({formatCurrency(itemTotals.avgRate)}/h). Asígnales un ítem editando la hora cargada.
+            </p>
+          )}
+        </div>
+        <form action={addBudgetItem} className="flex flex-wrap items-end gap-3 border-t border-slate-100 px-5 py-4">
+          <input type="hidden" name="projectId" value={project.id} />
+          <div>
+            <label className={LABEL}>Ítem</label>
+            <input name="name" required placeholder="Ej: Diseño, Gestión, Mejoras" className={INPUT} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Presupuesto (CLP)</label>
-            <input type="number" name="budgetAmount" min={0} step={1} defaultValue={project.budgetAmount} className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <label className={LABEL}>Horas</label>
+            <input type="number" name="hours" min={0} step="any" defaultValue={0} className={`w-24 ${INPUT}`} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Tarifa horaria (CLP)</label>
-            <input type="number" name="hourlyRate" min={0} step={1} defaultValue={project.hourlyRate} className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <label className={LABEL}>Tarifa horaria (CLP)</label>
+            <input type="number" name="hourlyRate" min={0} step={1} defaultValue={0} className={`w-36 ${INPUT}`} />
           </div>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Guardar cambios
-          </button>
+          <button type="submit" className={SAVE_BTN}>Agregar ítem</button>
         </form>
       </Card>
 
@@ -268,7 +360,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                 <div>
                   <p className="font-medium text-slate-900">{entry.teamMember.name}</p>
                   <p className="text-xs text-slate-500">
-                    {formatDate(entry.date)} {entry.task ? `· ${entry.task.title}` : ""} {!entry.billable ? "· No facturable" : ""}
+                    {formatDate(entry.date)} {entry.budgetItem ? `· ${entry.budgetItem.name}` : ""} {entry.task ? `· ${entry.task.title}` : ""} {!entry.billable ? "· No facturable" : ""}
                   </p>
                 </div>
                 <p className="font-medium text-slate-700">{formatHours(entry.hours)}</p>
@@ -287,6 +379,15 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                       {!teamMembers.some((m) => m.id === entry.teamMemberId) && (
                         <option value={entry.teamMemberId}>{entry.teamMember.name}</option>
                       )}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Ítem de presupuesto</label>
+                    <select name="budgetItemId" defaultValue={entry.budgetItemId ?? ""} className={INPUT}>
+                      <option value="">Sin ítem</option>
+                      {project.budgetItems.map((i) => (
+                        <option key={i.id} value={i.id}>{i.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
@@ -326,6 +427,15 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                 <option key={m.id} value={m.id}>
                   {m.name}
                 </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Ítem de presupuesto</label>
+            <select name="budgetItemId" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none">
+              <option value="">Sin ítem</option>
+              {project.budgetItems.map((i) => (
+                <option key={i.id} value={i.id}>{i.name}</option>
               ))}
             </select>
           </div>

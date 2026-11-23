@@ -74,19 +74,10 @@ export default async function NuevoProyectoPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Horas presupuestadas</label>
-              <input type="number" name="budgetHours" min={0} step="any" defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Presupuesto (CLP)</label>
-              <input type="number" name="budgetAmount" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Tarifa horaria (CLP)</label>
-              <input type="number" name="hourlyRate" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
-            </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Presupuesto (CLP)</label>
+            <input type="number" name="budgetAmount" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
+            <p className="mt-1 text-xs text-slate-500">Las horas y tarifas por ítem (diseño, gestión, etc.) se agregan después, dentro del proyecto.</p>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

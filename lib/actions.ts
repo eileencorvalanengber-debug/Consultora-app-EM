@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ProjectStatus, Sentido, TaskPriority, TaskStatus } from "@prisma/client";
 import { requireAuth } from "@/lib/dal";
+import { totalsFromItems } from "@/lib/budget";
 
 const PROJECT_STATUSES = ["PLANIFICACION", "EN_CURSO", "EN_RIESGO", "PAUSADO", "COMPLETADO"] as const;
 const TASK_STATUSES = ["PENDIENTE", "EN_CURSO", "COMPLETADA", "BLOQUEADA"] as const;
@@ -32,6 +33,26 @@ function dateOf(value: string): Date {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) throw new Error("Fecha no válida");
   return d;
+}
+
+// Mantiene Project.budgetHours / hourlyRate como totales derivados de los ítems.
+async function syncBudgetTotals(projectId: string) {
+  const items = await prisma.budgetItem.findMany({ where: { projectId } });
+  const { hours, avgRate } = totalsFromItems(items);
+  await prisma.project.update({ where: { id: projectId }, data: { budgetHours: hours, hourlyRate: avgRate } });
+}
+
+// El ítem debe pertenecer al mismo proyecto; si no, se ignora.
+async function validItemId(projectId: string, raw: string): Promise<string | null> {
+  if (!raw) return null;
+  const item = await prisma.budgetItem.findFirst({ where: { id: raw, projectId }, select: { id: true } });
+  return item?.id ?? null;
+}
+
+function revalidateProject(projectId: string) {
+  revalidatePath(`/proyectos/${projectId}`);
+  revalidatePath("/proyectos");
+  revalidatePath("/");
 }
 
 export async function upsertKpiMeasurement(formData: FormData) {
@@ -180,9 +201,7 @@ export async function createProject(formData: FormData) {
       status: oneOf<ProjectStatus>(str(formData, "status"), PROJECT_STATUSES, "PLANIFICACION"),
       startDate: dateOf(str(formData, "startDate")),
       endDate: dateOf(str(formData, "endDate")),
-      budgetHours: nonNeg(formData, "budgetHours"),
       budgetAmount: nonNeg(formData, "budgetAmount"),
-      hourlyRate: nonNeg(formData, "hourlyRate"),
       progressPercent: 0,
     },
   });
@@ -206,15 +225,9 @@ export async function updateProjectBudget(formData: FormData) {
   const projectId = str(formData, "projectId");
   await prisma.project.update({
     where: { id: projectId },
-    data: {
-      budgetAmount: nonNeg(formData, "budgetAmount"),
-      budgetHours: nonNeg(formData, "budgetHours"),
-      hourlyRate: nonNeg(formData, "hourlyRate"),
-    },
+    data: { budgetAmount: nonNeg(formData, "budgetAmount") },
   });
-  revalidatePath(`/proyectos/${projectId}`);
-  revalidatePath("/proyectos");
-  revalidatePath("/");
+  revalidateProject(projectId);
 }
 
 export async function updateProjectProgress(formData: FormData) {
@@ -297,6 +310,7 @@ export async function createTimeEntry(formData: FormData) {
       projectId,
       teamMemberId,
       taskId: str(formData, "taskId") || null,
+      budgetItemId: await validItemId(projectId, str(formData, "budgetItemId")),
       date: dateOf(date),
       hours,
       billable: formData.get("billable") === "on",
@@ -324,6 +338,7 @@ export async function updateTimeEntry(formData: FormData) {
     data: {
       teamMemberId,
       taskId: str(formData, "taskId") || null,
+      budgetItemId: await validItemId(projectId, str(formData, "budgetItemId")),
       date: dateOf(date),
       hours,
       billable: formData.get("billable") === "on",
@@ -375,4 +390,54 @@ export async function updateTask(formData: FormData) {
 
   revalidatePath(`/proyectos/${projectId}`);
   revalidatePath("/");
+}
+
+// ---------- Ítems del presupuesto de horas ----------
+
+export async function addBudgetItem(formData: FormData) {
+  await requireAuth();
+  const projectId = str(formData, "projectId");
+  const name = str(formData, "name");
+  if (!projectId || !name) throw new Error("Faltan datos");
+
+  const last = await prisma.budgetItem.findFirst({ where: { projectId }, orderBy: { order: "desc" }, select: { order: true } });
+  await prisma.budgetItem.create({
+    data: {
+      projectId,
+      name,
+      hours: nonNeg(formData, "hours"),
+      hourlyRate: nonNeg(formData, "hourlyRate"),
+      order: (last?.order ?? -1) + 1,
+    },
+  });
+  await syncBudgetTotals(projectId);
+  revalidateProject(projectId);
+}
+
+export async function updateBudgetItem(formData: FormData) {
+  await requireAuth();
+  const itemId = str(formData, "itemId");
+  const projectId = str(formData, "projectId");
+  const name = str(formData, "name");
+  if (!itemId || !projectId || !name) throw new Error("Faltan datos");
+
+  // where con projectId: no se puede editar un ítem de otro proyecto.
+  await prisma.budgetItem.updateMany({
+    where: { id: itemId, projectId },
+    data: { name, hours: nonNeg(formData, "hours"), hourlyRate: nonNeg(formData, "hourlyRate") },
+  });
+  await syncBudgetTotals(projectId);
+  revalidateProject(projectId);
+}
+
+// Las horas ya cargadas NO se borran: quedan sin ítem (ON DELETE SET NULL).
+export async function deleteBudgetItem(formData: FormData) {
+  await requireAuth();
+  const itemId = str(formData, "itemId");
+  const projectId = str(formData, "projectId");
+  if (!itemId || !projectId) throw new Error("Faltan datos");
+
+  await prisma.budgetItem.deleteMany({ where: { id: itemId, projectId } });
+  await syncBudgetTotals(projectId);
+  revalidateProject(projectId);
 }
