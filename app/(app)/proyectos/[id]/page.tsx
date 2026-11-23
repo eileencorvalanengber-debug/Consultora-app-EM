@@ -8,8 +8,10 @@ import { TaskStatusSelect } from "@/components/TaskStatusSelect";
 import { PROJECT_STATUS_COLOR, PROJECT_STATUS_LABEL, TASK_PRIORITY_COLOR, TASK_PRIORITY_LABEL } from "@/lib/labels";
 import { formatCurrency, formatDate, formatDateInput, formatHours } from "@/lib/format";
 import { requireAuth } from "@/lib/dal";
+import { SubmitButton } from "@/components/SubmitButton";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { contribution, hoursByItem, laborCost, totalsFromItems } from "@/lib/budget";
-import { addBudgetItem, addProjectMember, createTask, createTimeEntry, deleteBudgetItem, updateBudgetItem, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
+import { addBudgetItem, addProjectMember, createTask, createTimeEntry, deleteBudgetItem, deleteTask, deleteTimeEntry, removeProjectMember, updateBudgetItem, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
 
 const INPUT = "rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
 const LABEL = "mb-1 block text-xs font-medium text-slate-600";
@@ -104,7 +106,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <label className={LABEL}>Presupuesto neto (CLP)</label>
             <input type="number" name="budgetAmount" min={0} step={1} defaultValue={project.budgetAmount} className={`w-44 ${INPUT}`} />
           </div>
-          <button type="submit" className={SAVE_BTN}>Guardar cambios</button>
+          <SubmitButton className={SAVE_BTN}>Guardar cambios</SubmitButton>
         </form>
         {project.budgetItems.length > 0 && project.budgetAmount > 0 && (
           <div className="border-t border-slate-100 px-5 py-4">
@@ -174,14 +176,14 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                       <label className={LABEL}>Pago por hora, bruto (CLP)</label>
                       <input type="number" name="hourlyRate" min={0} step={1} defaultValue={item.hourlyRate} className={`w-36 ${INPUT}`} />
                     </div>
-                    <button type="submit" className={SAVE_BTN}>Guardar</button>
+                    <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
                   </form>
                   <form action={deleteBudgetItem} className="mt-2">
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="projectId" value={project.id} />
-                    <button type="submit" className="text-xs font-medium text-red-600 hover:underline">
+                    <ConfirmSubmitButton message="¿Eliminar este ítem? Las horas ya cargadas se conservan, quedan sin ítem." className="text-xs font-medium text-red-600 hover:underline">
                       Eliminar ítem (las horas ya cargadas se conservan, quedan sin ítem)
-                    </button>
+                    </ConfirmSubmitButton>
                   </form>
                 </details>
               </div>
@@ -220,7 +222,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <label className={LABEL}>Pago por hora, bruto (CLP)</label>
             <input type="number" name="hourlyRate" min={0} step={1} defaultValue={0} className={`w-36 ${INPUT}`} />
           </div>
-          <button type="submit" className={SAVE_BTN}>Agregar ítem</button>
+          <SubmitButton className={SAVE_BTN}>Agregar ítem</SubmitButton>
         </form>
       </Card>
 
@@ -249,7 +251,14 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                     <label className={LABEL}>Horas/semana</label>
                     <input type="number" name="allocationHoursPerWeek" min={0} step="any" defaultValue={m.allocationHoursPerWeek} className={`w-24 ${INPUT}`} />
                   </div>
-                  <button type="submit" className={SAVE_BTN}>Guardar</button>
+                  <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
+                </form>
+                <form action={removeProjectMember} className="mt-2">
+                  <input type="hidden" name="memberId" value={m.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <ConfirmSubmitButton message="¿Quitar a este consultor del proyecto? Sus horas ya cargadas se conservan." className="text-xs font-medium text-red-600 hover:underline">
+                    Quitar del proyecto
+                  </ConfirmSubmitButton>
                 </form>
               </details>
             </div>
@@ -277,9 +286,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <label className="mb-1 block text-xs font-medium text-slate-600">Horas/semana</label>
             <input type="number" name="allocationHoursPerWeek" min={0} step="any" defaultValue={10} className="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           </div>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Asignar
-          </button>
+          <SubmitButton className={SAVE_BTN}>Asignar</SubmitButton>
         </form>
       </Card>
 
@@ -329,7 +336,14 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                     <label className={LABEL}>Vencimiento</label>
                     <input type="date" name="dueDate" defaultValue={task.dueDate ? formatDateInput(task.dueDate) : ""} className={INPUT} />
                   </div>
-                  <button type="submit" className={SAVE_BTN}>Guardar</button>
+                  <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
+                </form>
+              <form action={deleteTask} className="mt-2">
+                  <input type="hidden" name="taskId" value={task.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <ConfirmSubmitButton message="¿Eliminar esta tarea? Las horas ya cargadas a esta tarea se conservan, quedan sin tarea." className="text-xs font-medium text-red-600 hover:underline">
+                    Eliminar tarea
+                  </ConfirmSubmitButton>
                 </form>
               </details>
             </div>
@@ -365,9 +379,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <label className="mb-1 block text-xs font-medium text-slate-600">Vencimiento</label>
             <input type="date" name="dueDate" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           </div>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Agregar tarea
-          </button>
+          <SubmitButton className={SAVE_BTN}>Agregar tarea</SubmitButton>
         </form>
       </Card>
 
@@ -430,7 +442,14 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                   <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
                     <input type="checkbox" name="billable" defaultChecked={entry.billable} /> Facturable
                   </label>
-                  <button type="submit" className={SAVE_BTN}>Guardar</button>
+                  <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
+                </form>
+              <form action={deleteTimeEntry} className="mt-2">
+                  <input type="hidden" name="entryId" value={entry.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <ConfirmSubmitButton message="¿Eliminar este registro de horas? No se puede deshacer." className="text-xs font-medium text-red-600 hover:underline">
+                    Eliminar registro de horas
+                  </ConfirmSubmitButton>
                 </form>
               </details>
             </div>
@@ -481,9 +500,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
             <input type="checkbox" name="billable" defaultChecked /> Facturable
           </label>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Cargar horas
-          </button>
+          <SubmitButton className={SAVE_BTN}>Cargar horas</SubmitButton>
         </form>
       </Card>
     </div>

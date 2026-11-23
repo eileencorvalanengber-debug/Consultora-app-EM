@@ -49,6 +49,12 @@ async function validItemId(projectId: string, raw: string): Promise<string | nul
   return item?.id ?? null;
 }
 
+// Ventana anti doble clic: si ya se creó un registro idéntico hace unos segundos, no se repite.
+const DUPLICATE_WINDOW_MS = 15_000;
+function justNow(): Date {
+  return new Date(Date.now() - DUPLICATE_WINDOW_MS);
+}
+
 function revalidateProject(projectId: string) {
   revalidatePath(`/proyectos/${projectId}`);
   revalidatePath("/proyectos");
@@ -271,6 +277,12 @@ export async function createTask(formData: FormData) {
 
   const dueDate = str(formData, "dueDate");
 
+  const recent = await prisma.task.findFirst({ where: { projectId, title, createdAt: { gte: justNow() } }, select: { id: true } });
+  if (recent) {
+    revalidatePath(`/proyectos/${projectId}`);
+    return;
+  }
+
   await prisma.task.create({
     data: {
       projectId,
@@ -304,6 +316,15 @@ export async function createTimeEntry(formData: FormData) {
   const hours = nonNeg(formData, "hours");
   const date = str(formData, "date");
   if (!projectId || !teamMemberId || !hours || !date) throw new Error("Faltan datos");
+
+  const recentEntry = await prisma.timeEntry.findFirst({
+    where: { projectId, teamMemberId, hours, date: dateOf(date), createdAt: { gte: justNow() } },
+    select: { id: true },
+  });
+  if (recentEntry) {
+    revalidatePath(`/proyectos/${projectId}`);
+    return;
+  }
 
   await prisma.timeEntry.create({
     data: {
@@ -400,6 +421,13 @@ export async function addBudgetItem(formData: FormData) {
   const name = str(formData, "name");
   if (!projectId || !name) throw new Error("Faltan datos");
 
+  // Un ítem con el mismo nombre en el mismo proyecto es casi seguro un doble envío: no se repite.
+  const existing = await prisma.budgetItem.findFirst({ where: { projectId, name: { equals: name, mode: "insensitive" } }, select: { id: true } });
+  if (existing) {
+    revalidateProject(projectId);
+    return;
+  }
+
   const last = await prisma.budgetItem.findFirst({ where: { projectId }, orderBy: { order: "desc" }, select: { order: true } });
   await prisma.budgetItem.create({
     data: {
@@ -439,5 +467,40 @@ export async function deleteBudgetItem(formData: FormData) {
 
   await prisma.budgetItem.deleteMany({ where: { id: itemId, projectId } });
   await syncBudgetTotals(projectId);
+  revalidateProject(projectId);
+}
+
+// ---------- Borrado ----------
+// Siempre filtran también por projectId: no se puede borrar un registro de otro proyecto.
+
+// Las horas cargadas a la tarea NO se borran: quedan sin tarea (ON DELETE SET NULL).
+export async function deleteTask(formData: FormData) {
+  await requireAuth();
+  const taskId = str(formData, "taskId");
+  const projectId = str(formData, "projectId");
+  if (!taskId || !projectId) throw new Error("Faltan datos");
+
+  await prisma.task.deleteMany({ where: { id: taskId, projectId } });
+  revalidateProject(projectId);
+}
+
+export async function deleteTimeEntry(formData: FormData) {
+  await requireAuth();
+  const entryId = str(formData, "entryId");
+  const projectId = str(formData, "projectId");
+  if (!entryId || !projectId) throw new Error("Faltan datos");
+
+  await prisma.timeEntry.deleteMany({ where: { id: entryId, projectId } });
+  revalidateProject(projectId);
+}
+
+// Quita al consultor del proyecto; sus horas ya cargadas se conservan.
+export async function removeProjectMember(formData: FormData) {
+  await requireAuth();
+  const memberId = str(formData, "memberId");
+  const projectId = str(formData, "projectId");
+  if (!memberId || !projectId) throw new Error("Faltan datos");
+
+  await prisma.projectMember.deleteMany({ where: { id: memberId, projectId } });
   revalidateProject(projectId);
 }
