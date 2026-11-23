@@ -304,7 +304,8 @@ export async function updateTaskStatus(formData: FormData) {
   const taskId = str(formData, "taskId");
   const projectId = str(formData, "projectId");
   const status = oneOf<TaskStatus>(str(formData, "status"), TASK_STATUSES);
-  await prisma.task.update({ where: { id: taskId }, data: { status } });
+  if (!taskId || !projectId) throw new Error("Faltan datos");
+  await prisma.task.updateMany({ where: { id: taskId, projectId }, data: { status } });
   revalidatePath(`/proyectos/${projectId}`);
   revalidatePath("/");
 }
