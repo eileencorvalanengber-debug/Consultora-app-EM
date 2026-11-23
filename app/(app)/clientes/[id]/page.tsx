@@ -2,10 +2,12 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { updateClient } from "@/lib/actions";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditarClientePage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAuth();
   const { id } = await params;
 
   const client = await prisma.client.findUnique({ where: { id } });

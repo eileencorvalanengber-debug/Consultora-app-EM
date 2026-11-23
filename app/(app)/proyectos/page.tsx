@@ -2,10 +2,12 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/Card";
 import { ProjectsTable, type ProjectRow } from "@/components/ProjectsTable";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProyectosPage() {
+  await requireAuth();
   const projects = await prisma.project.findMany({
     include: { client: true, timeEntries: true },
     orderBy: [{ status: "asc" }, { endDate: "asc" }],

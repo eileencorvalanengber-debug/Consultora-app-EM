@@ -7,11 +7,21 @@ import { ProjectStatusSelect } from "@/components/ProjectStatusSelect";
 import { TaskStatusSelect } from "@/components/TaskStatusSelect";
 import { PROJECT_STATUS_COLOR, PROJECT_STATUS_LABEL, TASK_PRIORITY_COLOR, TASK_PRIORITY_LABEL } from "@/lib/labels";
 import { formatCurrency, formatDate, formatDateInput, formatHours } from "@/lib/format";
-import { addProjectMember, createTask, createTimeEntry, updateProjectBudget, updateProjectProgress } from "@/lib/actions";
+import { requireAuth } from "@/lib/dal";
+import { SubmitButton } from "@/components/SubmitButton";
+import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
+import { contribution, hoursByItem, laborCost, totalsFromItems } from "@/lib/budget";
+import { addBudgetItem, addProjectMember, createTask, createTimeEntry, deleteBudgetItem, deleteProject, deleteTask, deleteTimeEntry, removeProjectMember, updateBudgetItem, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
+
+const INPUT = "rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
+const LABEL = "mb-1 block text-xs font-medium text-slate-600";
+const SAVE_BTN = "rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark";
+const EDIT_SUMMARY = "cursor-pointer select-none text-xs font-medium text-brand-primary hover:underline";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProyectoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAuth();
   const { id } = await params;
 
   const project = await prisma.project.findUnique({
@@ -20,7 +30,8 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
       client: true,
       members: { include: { teamMember: true } },
       tasks: { include: { assignee: true }, orderBy: [{ status: "asc" }, { dueDate: "asc" }] },
-      timeEntries: { include: { teamMember: true, task: true }, orderBy: { date: "desc" } },
+      timeEntries: { include: { teamMember: true, task: true, budgetItem: true }, orderBy: { date: "desc" } },
+      budgetItems: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] },
     },
   });
 
@@ -30,8 +41,12 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
 
   const hoursUsed = project.timeEntries.reduce((s, e) => s + e.hours, 0);
   const budgetPct = project.budgetHours > 0 ? (hoursUsed / project.budgetHours) * 100 : 0;
-  const billableHours = project.timeEntries.filter((e) => e.billable).reduce((s, e) => s + e.hours, 0);
-  const estimatedRevenue = billableHours * project.hourlyRate;
+  const itemTotals = totalsFromItems(project.budgetItems);
+  const usedByItem = hoursByItem(project.timeEntries);
+  const hoursWithoutItem = usedByItem.get(null) ?? 0;
+  const costIncurred = laborCost(project.timeEntries, project.budgetItems, itemTotals.avgRate);
+  const planned = contribution(project.budgetAmount, itemTotals.value); // margen si se gasta lo presupuestado
+  const current = contribution(project.budgetAmount, Math.max(costIncurred, 0)); // margen con el costo ya incurrido
   const assignedMemberIds = new Set(project.members.map((m) => m.teamMemberId));
 
   return (
@@ -54,9 +69,9 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           <ProgressBar value={budgetPct} className="mt-2" />
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Presupuesto</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Presupuesto neto</p>
           <p className="mt-2 text-xl font-semibold text-slate-900">{formatCurrency(project.budgetAmount)}</p>
-          <p className="mt-1 text-xs text-slate-500">Facturación estimada: {formatCurrency(estimatedRevenue)}</p>
+          <p className="mt-1 text-xs text-slate-500">Costo honorarios cargado: {formatCurrency(costIncurred)}</p>
         </Card>
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cronograma</p>
@@ -84,24 +99,130 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
       </div>
 
       <Card>
-        <CardHeader title="Presupuesto y tarifa" subtitle="Horas, monto y tarifa horaria del proyecto" />
+        <CardHeader title="Presupuesto del proyecto" subtitle="Monto neto acordado con el cliente (+ IVA)" />
         <form action={updateProjectBudget} className="flex flex-wrap items-end gap-3 px-5 py-4">
           <input type="hidden" name="projectId" value={project.id} />
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Horas presupuestadas</label>
-            <input type="number" name="budgetHours" min={0} step={1} defaultValue={project.budgetHours} className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <label className={LABEL}>Presupuesto neto (CLP)</label>
+            <input type="number" name="budgetAmount" min={0} step={1} defaultValue={project.budgetAmount} className={`w-44 ${INPUT}`} />
+          </div>
+          <SubmitButton className={SAVE_BTN}>Guardar cambios</SubmitButton>
+        </form>
+        {project.budgetItems.length > 0 && project.budgetAmount > 0 && (
+          <div className="border-t border-slate-100 px-5 py-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-slate-500">Ingreso neto</p>
+                <p className="text-base font-semibold text-slate-900">{formatCurrency(project.budgetAmount)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Costo honorarios presupuestado (bruto)</p>
+                <p className="text-base font-semibold text-slate-900">{formatCurrency(itemTotals.value)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Margen de contribución</p>
+                <p className={`text-base font-semibold ${planned.margin < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                  {formatCurrency(planned.margin)} <span className="text-xs font-normal">({planned.pct.toFixed(0)}%)</span>
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              Es lo que el proyecto aporta a los gastos fijos; no es utilidad. Con las horas ya cargadas el margen sería{" "}
+              <span className={current.margin < 0 ? "font-semibold text-red-600" : "font-medium text-slate-700"}>
+                {formatCurrency(current.margin)} ({current.pct.toFixed(0)}%)
+              </span>
+              {costIncurred > itemTotals.value && itemTotals.value > 0 ? ", y ya superaste el costo presupuestado." : "."}
+            </p>
+          </div>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Horas presupuestadas por ítem" subtitle="Cuánto pagas por hora en cada ítem, bruto (diseño, gestión, mejoras…)" />
+        <div className="divide-y divide-slate-100">
+          {project.budgetItems.map((item) => {
+            const used = usedByItem.get(item.id) ?? 0;
+            const pct = item.hours > 0 ? (used / item.hours) * 100 : used > 0 ? 100 : 0;
+            const over = item.hours > 0 ? used > item.hours : used > 0;
+            return (
+              <div key={item.id} className="px-5 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-medium text-slate-900">{item.name}</p>
+                  <p className="text-slate-600">
+                    <span className={over ? "font-semibold text-red-600" : ""}>{formatHours(used)}</span> / {formatHours(item.hours)}
+                    <span className="mx-2 text-slate-300">·</span>
+                    {formatCurrency(item.hourlyRate)}/h pago
+                    <span className="mx-2 text-slate-300">·</span>
+                    {formatCurrency(item.hours * item.hourlyRate)}
+                  </p>
+                </div>
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className={`h-full rounded-full ${over ? "bg-red-500" : "bg-blue-500"}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                </div>
+                <details className="mt-2">
+                  <summary className={EDIT_SUMMARY}>Editar</summary>
+                  <form action={updateBudgetItem} className="mt-2 flex flex-wrap items-end gap-3">
+                    <input type="hidden" name="itemId" value={item.id} />
+                    <input type="hidden" name="projectId" value={project.id} />
+                    <div>
+                      <label className={LABEL}>Ítem</label>
+                      <input name="name" required defaultValue={item.name} className={INPUT} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Horas</label>
+                      <input type="number" name="hours" min={0} step="any" defaultValue={item.hours} className={`w-24 ${INPUT}`} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Pago por hora, bruto (CLP)</label>
+                      <input type="number" name="hourlyRate" min={0} step={1} defaultValue={item.hourlyRate} className={`w-36 ${INPUT}`} />
+                    </div>
+                    <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
+                  </form>
+                  <form action={deleteBudgetItem} className="mt-2">
+                    <input type="hidden" name="itemId" value={item.id} />
+                    <input type="hidden" name="projectId" value={project.id} />
+                    <ConfirmSubmitButton message="¿Eliminar este ítem? Las horas ya cargadas se conservan, quedan sin ítem." className="text-xs font-medium text-red-600 hover:underline">
+                      Eliminar ítem (las horas ya cargadas se conservan, quedan sin ítem)
+                    </ConfirmSubmitButton>
+                  </form>
+                </details>
+              </div>
+            );
+          })}
+          {project.budgetItems.length === 0 && (
+            <p className="px-5 py-6 text-center text-sm text-slate-500">Todavía no hay ítems. Agrega el primero abajo (por ejemplo, “Diseño”).</p>
+          )}
+          {project.budgetItems.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50 px-5 py-3 text-sm font-medium text-slate-800">
+              <span>Total</span>
+              <span>
+                {formatHours(hoursUsed)} / {formatHours(itemTotals.hours)}
+                <span className="mx-2 text-slate-300">·</span>
+                {formatCurrency(itemTotals.value)}
+              </span>
+            </div>
+          )}
+          {hoursWithoutItem > 0 && project.budgetItems.length > 0 && (
+            <p className="px-5 py-2.5 text-xs text-amber-700">
+              {formatHours(hoursWithoutItem)} cargadas sin ítem: se valorizan al pago promedio ({formatCurrency(itemTotals.avgRate)}/h). Asígnales un ítem editando la hora cargada.
+            </p>
+          )}
+        </div>
+        <form action={addBudgetItem} className="flex flex-wrap items-end gap-3 border-t border-slate-100 px-5 py-4">
+          <input type="hidden" name="projectId" value={project.id} />
+          <div>
+            <label className={LABEL}>Ítem</label>
+            <input name="name" required placeholder="Ej: Diseño, Gestión, Mejoras" className={INPUT} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Presupuesto (CLP)</label>
-            <input type="number" name="budgetAmount" min={0} step={100000} defaultValue={project.budgetAmount} className="w-40 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <label className={LABEL}>Horas</label>
+            <input type="number" name="hours" min={0} step="any" defaultValue={0} className={`w-24 ${INPUT}`} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Tarifa horaria (CLP)</label>
-            <input type="number" name="hourlyRate" min={0} step={1000} defaultValue={project.hourlyRate} className="w-32 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <label className={LABEL}>Pago por hora, bruto (CLP)</label>
+            <input type="number" name="hourlyRate" min={0} step={1} defaultValue={0} className={`w-36 ${INPUT}`} />
           </div>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Guardar cambios
-          </button>
+          <SubmitButton className={SAVE_BTN}>Agregar ítem</SubmitButton>
         </form>
       </Card>
 
@@ -109,12 +230,37 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
         <CardHeader title="Equipo asignado" subtitle="Consultores y horas semanales asignadas" />
         <div className="divide-y divide-slate-100">
           {project.members.map((m) => (
-            <div key={m.id} className="flex items-center justify-between px-5 py-3 text-sm">
-              <div>
-                <p className="font-medium text-slate-900">{m.teamMember.name}</p>
-                <p className="text-xs text-slate-500">{m.roleOnProject}</p>
+            <div key={m.id} className="px-5 py-3 text-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-slate-900">{m.teamMember.name}</p>
+                  <p className="text-xs text-slate-500">{m.roleOnProject}</p>
+                </div>
+                <p className="text-slate-600">{m.allocationHoursPerWeek} h/semana</p>
               </div>
-              <p className="text-slate-600">{m.allocationHoursPerWeek} h/semana</p>
+              <details className="mt-2">
+                <summary className={EDIT_SUMMARY}>Editar</summary>
+                <form action={updateProjectMember} className="mt-2 flex flex-wrap items-end gap-3">
+                  <input type="hidden" name="memberId" value={m.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <div>
+                    <label className={LABEL}>Rol en el proyecto</label>
+                    <input name="roleOnProject" defaultValue={m.roleOnProject} className={INPUT} />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Horas/semana</label>
+                    <input type="number" name="allocationHoursPerWeek" min={0} step="any" defaultValue={m.allocationHoursPerWeek} className={`w-24 ${INPUT}`} />
+                  </div>
+                  <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
+                </form>
+                <form action={removeProjectMember} className="mt-2">
+                  <input type="hidden" name="memberId" value={m.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <ConfirmSubmitButton message="¿Quitar a este consultor del proyecto? Sus horas ya cargadas se conservan." className="text-xs font-medium text-red-600 hover:underline">
+                    Quitar del proyecto
+                  </ConfirmSubmitButton>
+                </form>
+              </details>
             </div>
           ))}
           {project.members.length === 0 && <p className="px-5 py-6 text-center text-sm text-slate-500">Todavía no hay consultores asignados.</p>}
@@ -138,11 +284,9 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Horas/semana</label>
-            <input type="number" name="allocationHoursPerWeek" min={0} step={1} defaultValue={10} className="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <input type="number" name="allocationHoursPerWeek" min={0} step="any" defaultValue={10} className="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           </div>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Asignar
-          </button>
+          <SubmitButton className={SAVE_BTN}>Asignar</SubmitButton>
         </form>
       </Card>
 
@@ -150,16 +294,58 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
         <CardHeader title="Tareas" subtitle={`${project.tasks.filter((t) => t.status === "COMPLETADA").length} de ${project.tasks.length} completadas`} />
         <div className="divide-y divide-slate-100">
           {project.tasks.map((task) => (
-            <div key={task.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-slate-900">{task.title}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  <Badge className={TASK_PRIORITY_COLOR[task.priority]}>{TASK_PRIORITY_LABEL[task.priority]}</Badge>
-                  {task.assignee && <span>{task.assignee.name}</span>}
-                  {task.dueDate && <span>Vence: {formatDate(task.dueDate)}</span>}
+            <div key={task.id} className="px-5 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-slate-900">{task.title}</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <Badge className={TASK_PRIORITY_COLOR[task.priority]}>{TASK_PRIORITY_LABEL[task.priority]}</Badge>
+                    {task.assignee && <span>{task.assignee.name}</span>}
+                    {task.dueDate && <span>Vence: {formatDate(task.dueDate)}</span>}
+                  </div>
                 </div>
+                <TaskStatusSelect taskId={task.id} projectId={project.id} status={task.status} />
               </div>
-              <TaskStatusSelect taskId={task.id} projectId={project.id} status={task.status} />
+              <details className="mt-2">
+                <summary className={EDIT_SUMMARY}>Editar</summary>
+                <form action={updateTask} className="mt-2 flex flex-wrap items-end gap-3">
+                  <input type="hidden" name="taskId" value={task.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <div className="min-w-[200px] flex-1">
+                    <label className={LABEL}>Título</label>
+                    <input name="title" required defaultValue={task.title} className={`w-full ${INPUT}`} />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Prioridad</label>
+                    <select name="priority" defaultValue={task.priority} className={INPUT}>
+                      <option value="BAJA">Baja</option>
+                      <option value="MEDIA">Media</option>
+                      <option value="ALTA">Alta</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Responsable</label>
+                    <select name="assigneeId" defaultValue={task.assigneeId ?? ""} className={INPUT}>
+                      <option value="">Sin asignar</option>
+                      {teamMembers.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Vencimiento</label>
+                    <input type="date" name="dueDate" defaultValue={task.dueDate ? formatDateInput(task.dueDate) : ""} className={INPUT} />
+                  </div>
+                  <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
+                </form>
+              <form action={deleteTask} className="mt-2">
+                  <input type="hidden" name="taskId" value={task.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <ConfirmSubmitButton message="¿Eliminar esta tarea? Las horas ya cargadas a esta tarea se conservan, quedan sin tarea." className="text-xs font-medium text-red-600 hover:underline">
+                    Eliminar tarea
+                  </ConfirmSubmitButton>
+                </form>
+              </details>
             </div>
           ))}
           {project.tasks.length === 0 && <p className="px-5 py-6 text-center text-sm text-slate-500">Todavía no hay tareas cargadas.</p>}
@@ -193,9 +379,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <label className="mb-1 block text-xs font-medium text-slate-600">Vencimiento</label>
             <input type="date" name="dueDate" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           </div>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Agregar tarea
-          </button>
+          <SubmitButton className={SAVE_BTN}>Agregar tarea</SubmitButton>
         </form>
       </Card>
 
@@ -203,14 +387,71 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
         <CardHeader title="Horas cargadas" subtitle="Últimos registros de horas del equipo" />
         <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
           {project.timeEntries.map((entry) => (
-            <div key={entry.id} className="flex items-center justify-between px-5 py-2.5 text-sm">
-              <div>
-                <p className="font-medium text-slate-900">{entry.teamMember.name}</p>
-                <p className="text-xs text-slate-500">
-                  {formatDate(entry.date)} {entry.task ? `· ${entry.task.title}` : ""} {!entry.billable ? "· No facturable" : ""}
-                </p>
+            <div key={entry.id} className="px-5 py-2.5 text-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-slate-900">{entry.teamMember.name}</p>
+                  <p className="text-xs text-slate-500">
+                    {formatDate(entry.date)} {entry.budgetItem ? `· ${entry.budgetItem.name}` : ""} {entry.task ? `· ${entry.task.title}` : ""} {!entry.billable ? "· No facturable" : ""}
+                  </p>
+                </div>
+                <p className="font-medium text-slate-700">{formatHours(entry.hours)}</p>
               </div>
-              <p className="font-medium text-slate-700">{formatHours(entry.hours)}</p>
+              <details className="mt-1.5">
+                <summary className={EDIT_SUMMARY}>Editar</summary>
+                <form action={updateTimeEntry} className="mt-2 flex flex-wrap items-end gap-3">
+                  <input type="hidden" name="entryId" value={entry.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <div>
+                    <label className={LABEL}>Consultor/a</label>
+                    <select name="teamMemberId" required defaultValue={entry.teamMemberId} className={INPUT}>
+                      {teamMembers.map((m) => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                      {!teamMembers.some((m) => m.id === entry.teamMemberId) && (
+                        <option value={entry.teamMemberId}>{entry.teamMember.name}</option>
+                      )}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Ítem de presupuesto</label>
+                    <select name="budgetItemId" defaultValue={entry.budgetItemId ?? ""} className={INPUT}>
+                      <option value="">Sin ítem</option>
+                      {project.budgetItems.map((i) => (
+                        <option key={i.id} value={i.id}>{i.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Tarea</label>
+                    <select name="taskId" defaultValue={entry.taskId ?? ""} className={INPUT}>
+                      <option value="">Sin tarea asociada</option>
+                      {project.tasks.map((t) => (
+                        <option key={t.id} value={t.id}>{t.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL}>Fecha</label>
+                    <input type="date" name="date" required defaultValue={formatDateInput(entry.date)} className={INPUT} />
+                  </div>
+                  <div>
+                    <label className={LABEL}>Horas</label>
+                    <input type="number" name="hours" min={0.25} step="any" required defaultValue={entry.hours} className={`w-20 ${INPUT}`} />
+                  </div>
+                  <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
+                    <input type="checkbox" name="billable" defaultChecked={entry.billable} /> Facturable
+                  </label>
+                  <SubmitButton className={SAVE_BTN}>Guardar</SubmitButton>
+                </form>
+              <form action={deleteTimeEntry} className="mt-2">
+                  <input type="hidden" name="entryId" value={entry.id} />
+                  <input type="hidden" name="projectId" value={project.id} />
+                  <ConfirmSubmitButton message="¿Eliminar este registro de horas? No se puede deshacer." className="text-xs font-medium text-red-600 hover:underline">
+                    Eliminar registro de horas
+                  </ConfirmSubmitButton>
+                </form>
+              </details>
             </div>
           ))}
           {project.timeEntries.length === 0 && <p className="px-5 py-6 text-center text-sm text-slate-500">Todavía no hay horas cargadas.</p>}
@@ -225,6 +466,15 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                 <option key={m.id} value={m.id}>
                   {m.name}
                 </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-600">Ítem de presupuesto</label>
+            <select name="budgetItemId" className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none">
+              <option value="">Sin ítem</option>
+              {project.budgetItems.map((i) => (
+                <option key={i.id} value={i.id}>{i.name}</option>
               ))}
             </select>
           </div>
@@ -245,14 +495,25 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-600">Horas</label>
-            <input type="number" name="hours" min={0.5} step={0.5} defaultValue={1} required className="w-20 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
+            <input type="number" name="hours" min={0.25} step="any" defaultValue={1} required className="w-20 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none" />
           </div>
           <label className="flex items-center gap-1.5 pb-2 text-sm text-slate-600">
             <input type="checkbox" name="billable" defaultChecked /> Facturable
           </label>
-          <button type="submit" className="rounded-lg bg-brand-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-dark">
-            Cargar horas
-          </button>
+          <SubmitButton className={SAVE_BTN}>Cargar horas</SubmitButton>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader title="Eliminar proyecto" subtitle="Borra el proyecto con sus ítems, tareas, consultores asignados y horas cargadas. No se puede deshacer." />
+        <form action={deleteProject} className="px-5 py-4">
+          <input type="hidden" name="projectId" value={project.id} />
+          <ConfirmSubmitButton
+            message={`¿Eliminar el proyecto "${project.name}" definitivamente? Se borrarán también sus tareas, horas cargadas, ítems y consultores asignados. No se puede deshacer.`}
+            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+          >
+            Eliminar proyecto
+          </ConfirmSubmitButton>
         </form>
       </Card>
     </div>

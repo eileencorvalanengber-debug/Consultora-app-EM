@@ -2,28 +2,32 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-
-const COOKIE_NAME = "consultora_session";
+import { COOKIE_NAME, SESSION_MAX_AGE_SECONDS, createSessionToken, passwordMatches, safeRedirectPath } from "@/lib/session";
 
 export async function login(formData: FormData) {
   const password = String(formData.get("password") ?? "");
-  const from = String(formData.get("from") ?? "/");
-  const appPassword = process.env.APP_PASSWORD;
+  const from = safeRedirectPath(String(formData.get("from") ?? "/"));
 
-  if (!appPassword || password !== appPassword) {
+  const ok = await passwordMatches(password);
+  if (!ok) {
+    // Frena los intentos automáticos de adivinar la contraseña.
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     redirect(`/login?from=${encodeURIComponent(from)}&error=1`);
   }
 
+  const token = await createSessionToken();
+  if (!token) redirect(`/login?from=${encodeURIComponent(from)}&error=1`);
+
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NAME, appPassword, {
+  cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
 
-  redirect(from || "/");
+  redirect(from);
 }
 
 export async function logout() {

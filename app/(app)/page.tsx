@@ -8,6 +8,8 @@ import { StatusDonutChart } from "@/components/charts/StatusDonutChart";
 import { BudgetUsageChart } from "@/components/charts/BudgetUsageChart";
 import { formatCurrency, formatHours } from "@/lib/format";
 import Link from "next/link";
+import { requireAuth } from "@/lib/dal";
+import { contribution, totalsFromItems } from "@/lib/budget";
 
 const STATUS_COLORS: Record<string, string> = {
   PLANIFICACION: "#94a3b8",
@@ -28,9 +30,10 @@ const STATUS_LABELS: Record<string, string> = {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  await requireAuth();
   const [projects, alerts] = await Promise.all([
     prisma.project.findMany({
-      include: { client: true, timeEntries: true },
+      include: { client: true, timeEntries: true, budgetItems: true },
       orderBy: { endDate: "asc" },
     }),
     getAlerts(),
@@ -46,10 +49,13 @@ export default async function DashboardPage() {
     .filter((e) => e.date >= thirtyDaysAgo)
     .reduce((s, e) => s + e.hours, 0);
 
-  const estimatedRevenue = projects.reduce((sum, p) => {
-    const billable = p.timeEntries.filter((e) => e.billable).reduce((s, e) => s + e.hours, 0);
-    return sum + billable * p.hourlyRate;
-  }, 0);
+  // Margen de contribución de proyectos activos con presupuesto e ítems cargados:
+  // presupuesto neto − costo de honorarios presupuestado.
+  const withCosts = activeProjects.filter((p) => p.budgetAmount > 0 && p.budgetItems.length > 0);
+  const totalBudget = withCosts.reduce((s, p) => s + p.budgetAmount, 0);
+  const totalCost = withCosts.reduce((s, p) => s + totalsFromItems(p.budgetItems).value, 0);
+  const portfolio = contribution(totalBudget, totalCost);
+  const projectsWithoutCosts = activeProjects.length - withCosts.length;
 
   const criticalAlerts = alerts.filter((a) => a.severity === "critica").length;
 
@@ -126,10 +132,16 @@ export default async function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Facturación estimada" subtitle="Horas facturables × tarifa horaria" />
+          <CardHeader title="Margen de contribución" subtitle="Presupuesto neto − honorarios presupuestados" />
           <div className="flex h-[240px] flex-col items-center justify-center gap-2 px-5">
-            <p className="text-3xl font-semibold text-slate-900">{formatCurrency(estimatedRevenue)}</p>
-            <p className="text-center text-xs text-slate-500">Acumulado de todos los proyectos según horas cargadas</p>
+            <p className={`text-3xl font-semibold ${portfolio.margin < 0 ? "text-red-600" : "text-slate-900"}`}>{formatCurrency(portfolio.margin)}</p>
+            <p className="text-center text-xs text-slate-500">
+              {withCosts.length > 0 ? `${portfolio.pct.toFixed(0)}% de ${formatCurrency(totalBudget)} neto en ${withCosts.length} proyectos activos` : "Aún no hay proyectos activos con presupuesto e ítems de horas"}
+            </p>
+            {projectsWithoutCosts > 0 && withCosts.length > 0 && (
+              <p className="text-center text-xs text-amber-700">{projectsWithoutCosts} proyecto(s) activo(s) sin presupuesto o sin ítems no se incluyen</p>
+            )}
+            <p className="text-center text-xs text-slate-400">Aporte a gastos fijos; no es utilidad</p>
           </div>
         </Card>
       </div>

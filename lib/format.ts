@@ -7,7 +7,7 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatHours(value: number): string {
-  return `${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 }).format(value)} h`;
+  return `${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(value)} h`;
 }
 
 export function formatDate(value: Date | string): string {
