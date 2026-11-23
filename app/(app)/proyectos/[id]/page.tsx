@@ -11,7 +11,7 @@ import { requireAuth } from "@/lib/dal";
 import { SubmitButton } from "@/components/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { contribution, hoursByItem, laborCost, totalsFromItems } from "@/lib/budget";
-import { addBudgetItem, addProjectMember, createTask, createTimeEntry, deleteBudgetItem, deleteTask, deleteTimeEntry, removeProjectMember, updateBudgetItem, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
+import { addBudgetItem, addProjectMember, createTask, createTimeEntry, deleteBudgetItem, deleteProject, deleteTask, deleteTimeEntry, removeProjectMember, updateBudgetItem, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
 
 const INPUT = "rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
 const LABEL = "mb-1 block text-xs font-medium text-slate-600";
@@ -501,6 +501,19 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <input type="checkbox" name="billable" defaultChecked /> Facturable
           </label>
           <SubmitButton className={SAVE_BTN}>Cargar horas</SubmitButton>
+        </form>
+      </Card>
+
+      <Card>
+        <CardHeader title="Eliminar proyecto" subtitle="Borra el proyecto con sus ítems, tareas, consultores asignados y horas cargadas. No se puede deshacer." />
+        <form action={deleteProject} className="px-5 py-4">
+          <input type="hidden" name="projectId" value={project.id} />
+          <ConfirmSubmitButton
+            message={`¿Eliminar el proyecto "${project.name}" definitivamente? Se borrarán también sus tareas, horas cargadas, ítems y consultores asignados. No se puede deshacer.`}
+            className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+          >
+            Eliminar proyecto
+          </ConfirmSubmitButton>
         </form>
       </Card>
     </div>

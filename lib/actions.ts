@@ -505,3 +505,15 @@ export async function removeProjectMember(formData: FormData) {
   await prisma.projectMember.deleteMany({ where: { id: memberId, projectId } });
   revalidateProject(projectId);
 }
+
+// Elimina el proyecto completo (ítems, tareas, consultores asignados y horas cargadas). Irreversible.
+export async function deleteProject(formData: FormData) {
+  await requireAuth();
+  const projectId = str(formData, "projectId");
+  if (!projectId) throw new Error("Faltan datos");
+
+  await prisma.project.deleteMany({ where: { id: projectId } });
+  revalidatePath("/proyectos");
+  revalidatePath("/");
+  redirect("/proyectos");
+}
