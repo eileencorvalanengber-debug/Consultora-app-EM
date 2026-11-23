@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { updateStrategicObjective } from "@/lib/actions";
 import { PERSPECTIVE_LABEL } from "@/lib/bsc";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
 export default async function EditarIndicadorPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAuth();
   const { id } = await params;
 
   const objective = await prisma.strategicObjective.findUnique({ where: { id } });

@@ -13,12 +13,14 @@ import {
   type Estado,
 } from "@/lib/bsc";
 import type { Perspective } from "@prisma/client";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
 const PERSPECTIVE_ORDER: Perspective[] = ["FINANCIERA", "CLIENTES", "PROCESOS_INTERNOS", "APRENDIZAJE_CRECIMIENTO"];
 
 export default async function IndicadoresPage() {
+  await requireAuth();
   const objectives = await prisma.strategicObjective.findMany({
     orderBy: { order: "asc" },
     include: { measurements: true },

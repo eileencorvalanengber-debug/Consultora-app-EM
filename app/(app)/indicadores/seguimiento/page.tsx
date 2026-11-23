@@ -3,6 +3,7 @@ import { Card, CardHeader } from "@/components/ui/Card";
 import { upsertKpiMeasurement } from "@/lib/actions";
 import { MONTH_LABELS, PERSPECTIVE_LABEL } from "@/lib/bsc";
 import type { Perspective } from "@prisma/client";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,7 @@ export default async function SeguimientoMensualPage({
 }: {
   searchParams: Promise<{ month?: string; year?: string }>;
 }) {
+  await requireAuth();
   const params = await searchParams;
   const now = new Date();
   const month = Math.min(12, Math.max(1, Number(params.month) || now.getMonth() + 1));

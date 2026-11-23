@@ -2,10 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { createProject } from "@/lib/actions";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { formatDateInput } from "@/lib/format";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
 export default async function NuevoProyectoPage() {
+  await requireAuth();
   const clients = await prisma.client.findMany({ orderBy: { name: "asc" } });
 
   const today = formatDateInput(new Date());
@@ -75,15 +77,15 @@ export default async function NuevoProyectoPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Horas presupuestadas</label>
-              <input type="number" name="budgetHours" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
+              <input type="number" name="budgetHours" min={0} step="any" defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Presupuesto (CLP)</label>
-              <input type="number" name="budgetAmount" min={0} step={100000} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
+              <input type="number" name="budgetAmount" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Tarifa horaria (CLP)</label>
-              <input type="number" name="hourlyRate" min={0} step={1000} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
+              <input type="number" name="hourlyRate" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
             </div>
           </div>
 

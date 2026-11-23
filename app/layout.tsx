@@ -10,6 +10,7 @@ const jost = Jost({
 export const metadata: Metadata = {
   title: "EDUCAMENTE | Gestión de proyectos",
   description: "Dashboard interno de proyectos, alertas y equipo",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -3,10 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { createTeamMember } from "@/lib/actions";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
 export default async function EquipoPage() {
+  await requireAuth();
   const members = await prisma.teamMember.findMany({
     where: { active: true },
     include: { assignments: { include: { project: true } } },

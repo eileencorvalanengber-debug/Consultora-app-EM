@@ -8,6 +8,7 @@ import { StatusDonutChart } from "@/components/charts/StatusDonutChart";
 import { BudgetUsageChart } from "@/components/charts/BudgetUsageChart";
 import { formatCurrency, formatHours } from "@/lib/format";
 import Link from "next/link";
+import { requireAuth } from "@/lib/dal";
 
 const STATUS_COLORS: Record<string, string> = {
   PLANIFICACION: "#94a3b8",
@@ -28,6 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  await requireAuth();
   const [projects, alerts] = await Promise.all([
     prisma.project.findMany({
       include: { client: true, timeEntries: true },

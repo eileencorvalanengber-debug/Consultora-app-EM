@@ -2,10 +2,12 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { createClient } from "@/lib/actions";
 import Link from "next/link";
+import { requireAuth } from "@/lib/dal";
 
 export const dynamic = "force-dynamic";
 
 export default async function ClientesPage() {
+  await requireAuth();
   const clients = await prisma.client.findMany({
     include: { projects: true },
     orderBy: { name: "asc" },
