@@ -75,9 +75,9 @@ export default async function NuevoProyectoPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Presupuesto (CLP)</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Presupuesto neto (CLP, + IVA)</label>
             <input type="number" name="budgetAmount" min={0} step={1} defaultValue={0} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none" />
-            <p className="mt-1 text-xs text-slate-500">Las horas y tarifas por ítem (diseño, gestión, etc.) se agregan después, dentro del proyecto.</p>
+            <p className="mt-1 text-xs text-slate-500">Los ítems de horas y su pago por hora (diseño, gestión, etc.) se agregan después, dentro del proyecto.</p>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">

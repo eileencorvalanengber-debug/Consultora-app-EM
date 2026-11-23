@@ -8,7 +8,7 @@ import { TaskStatusSelect } from "@/components/TaskStatusSelect";
 import { PROJECT_STATUS_COLOR, PROJECT_STATUS_LABEL, TASK_PRIORITY_COLOR, TASK_PRIORITY_LABEL } from "@/lib/labels";
 import { formatCurrency, formatDate, formatDateInput, formatHours } from "@/lib/format";
 import { requireAuth } from "@/lib/dal";
-import { estimatedRevenue as calcRevenue, hoursByItem, totalsFromItems } from "@/lib/budget";
+import { contribution, hoursByItem, laborCost, totalsFromItems } from "@/lib/budget";
 import { addBudgetItem, addProjectMember, createTask, createTimeEntry, deleteBudgetItem, updateBudgetItem, updateProjectBudget, updateProjectMember, updateProjectProgress, updateTask, updateTimeEntry } from "@/lib/actions";
 
 const INPUT = "rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-slate-500 focus:outline-none";
@@ -42,8 +42,9 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
   const itemTotals = totalsFromItems(project.budgetItems);
   const usedByItem = hoursByItem(project.timeEntries);
   const hoursWithoutItem = usedByItem.get(null) ?? 0;
-  const estimatedRevenue = calcRevenue(project.timeEntries, project.budgetItems, itemTotals.avgRate);
-  const budgetGap = project.budgetAmount - itemTotals.value; // presupuesto del proyecto vs valor de las horas
+  const costIncurred = laborCost(project.timeEntries, project.budgetItems, itemTotals.avgRate);
+  const planned = contribution(project.budgetAmount, itemTotals.value); // margen si se gasta lo presupuestado
+  const current = contribution(project.budgetAmount, Math.max(costIncurred, 0)); // margen con el costo ya incurrido
   const assignedMemberIds = new Set(project.members.map((m) => m.teamMemberId));
 
   return (
@@ -66,9 +67,9 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           <ProgressBar value={budgetPct} className="mt-2" />
         </Card>
         <Card className="p-5">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Presupuesto</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Presupuesto neto</p>
           <p className="mt-2 text-xl font-semibold text-slate-900">{formatCurrency(project.budgetAmount)}</p>
-          <p className="mt-1 text-xs text-slate-500">Facturación estimada: {formatCurrency(estimatedRevenue)}</p>
+          <p className="mt-1 text-xs text-slate-500">Costo honorarios cargado: {formatCurrency(costIncurred)}</p>
         </Card>
         <Card className="p-5">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cronograma</p>
@@ -96,27 +97,46 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
       </div>
 
       <Card>
-        <CardHeader title="Presupuesto del proyecto" subtitle="Monto total acordado con el cliente (CLP)" />
+        <CardHeader title="Presupuesto del proyecto" subtitle="Monto neto acordado con el cliente (+ IVA)" />
         <form action={updateProjectBudget} className="flex flex-wrap items-end gap-3 px-5 py-4">
           <input type="hidden" name="projectId" value={project.id} />
           <div>
-            <label className={LABEL}>Presupuesto (CLP)</label>
+            <label className={LABEL}>Presupuesto neto (CLP)</label>
             <input type="number" name="budgetAmount" min={0} step={1} defaultValue={project.budgetAmount} className={`w-44 ${INPUT}`} />
           </div>
           <button type="submit" className={SAVE_BTN}>Guardar cambios</button>
         </form>
         {project.budgetItems.length > 0 && project.budgetAmount > 0 && (
-          <p className={`border-t border-slate-100 px-5 py-3 text-xs ${budgetGap < 0 ? "text-red-600" : "text-slate-500"}`}>
-            Valor de las horas por ítem: {formatCurrency(itemTotals.value)} ·{" "}
-            {budgetGap >= 0
-              ? `queda un margen de ${formatCurrency(budgetGap)} sobre el presupuesto`
-              : `las horas valorizadas superan el presupuesto por ${formatCurrency(-budgetGap)}`}
-          </p>
+          <div className="border-t border-slate-100 px-5 py-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-slate-500">Ingreso neto</p>
+                <p className="text-base font-semibold text-slate-900">{formatCurrency(project.budgetAmount)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Costo honorarios presupuestado (bruto)</p>
+                <p className="text-base font-semibold text-slate-900">{formatCurrency(itemTotals.value)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Margen de contribución</p>
+                <p className={`text-base font-semibold ${planned.margin < 0 ? "text-red-600" : "text-emerald-700"}`}>
+                  {formatCurrency(planned.margin)} <span className="text-xs font-normal">({planned.pct.toFixed(0)}%)</span>
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              Es lo que el proyecto aporta a los gastos fijos; no es utilidad. Con las horas ya cargadas el margen sería{" "}
+              <span className={current.margin < 0 ? "font-semibold text-red-600" : "font-medium text-slate-700"}>
+                {formatCurrency(current.margin)} ({current.pct.toFixed(0)}%)
+              </span>
+              {costIncurred > itemTotals.value && itemTotals.value > 0 ? ", y ya superaste el costo presupuestado." : "."}
+            </p>
+          </div>
         )}
       </Card>
 
       <Card>
-        <CardHeader title="Horas presupuestadas por ítem" subtitle="Cada ítem tiene su propia tarifa horaria (diseño, gestión, mejoras…)" />
+        <CardHeader title="Horas presupuestadas por ítem" subtitle="Cuánto pagas por hora en cada ítem, bruto (diseño, gestión, mejoras…)" />
         <div className="divide-y divide-slate-100">
           {project.budgetItems.map((item) => {
             const used = usedByItem.get(item.id) ?? 0;
@@ -129,7 +149,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                   <p className="text-slate-600">
                     <span className={over ? "font-semibold text-red-600" : ""}>{formatHours(used)}</span> / {formatHours(item.hours)}
                     <span className="mx-2 text-slate-300">·</span>
-                    {formatCurrency(item.hourlyRate)}/h
+                    {formatCurrency(item.hourlyRate)}/h pago
                     <span className="mx-2 text-slate-300">·</span>
                     {formatCurrency(item.hours * item.hourlyRate)}
                   </p>
@@ -151,7 +171,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                       <input type="number" name="hours" min={0} step="any" defaultValue={item.hours} className={`w-24 ${INPUT}`} />
                     </div>
                     <div>
-                      <label className={LABEL}>Tarifa horaria (CLP)</label>
+                      <label className={LABEL}>Pago por hora, bruto (CLP)</label>
                       <input type="number" name="hourlyRate" min={0} step={1} defaultValue={item.hourlyRate} className={`w-36 ${INPUT}`} />
                     </div>
                     <button type="submit" className={SAVE_BTN}>Guardar</button>
@@ -182,7 +202,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
           )}
           {hoursWithoutItem > 0 && project.budgetItems.length > 0 && (
             <p className="px-5 py-2.5 text-xs text-amber-700">
-              {formatHours(hoursWithoutItem)} cargadas sin ítem: se valorizan a la tarifa promedio ({formatCurrency(itemTotals.avgRate)}/h). Asígnales un ítem editando la hora cargada.
+              {formatHours(hoursWithoutItem)} cargadas sin ítem: se valorizan al pago promedio ({formatCurrency(itemTotals.avgRate)}/h). Asígnales un ítem editando la hora cargada.
             </p>
           )}
         </div>
@@ -197,7 +217,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
             <input type="number" name="hours" min={0} step="any" defaultValue={0} className={`w-24 ${INPUT}`} />
           </div>
           <div>
-            <label className={LABEL}>Tarifa horaria (CLP)</label>
+            <label className={LABEL}>Pago por hora, bruto (CLP)</label>
             <input type="number" name="hourlyRate" min={0} step={1} defaultValue={0} className={`w-36 ${INPUT}`} />
           </div>
           <button type="submit" className={SAVE_BTN}>Agregar ítem</button>

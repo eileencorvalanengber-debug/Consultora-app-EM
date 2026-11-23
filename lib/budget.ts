@@ -11,13 +11,22 @@ export function totalsFromItems(items: { hours: number; hourlyRate: number }[]) 
   return { hours, value, avgRate };
 }
 
-// Facturación estimada: cada hora facturable se valoriza con la tarifa de su ítem.
-// Las horas sin ítem usan la tarifa promedio del proyecto.
-export function estimatedRevenue(entries: EntryLite[], items: ItemLite[], fallbackRate: number): number {
+// Costo de honorarios de las horas cargadas: cada hora se valoriza con el pago por hora de su ítem.
+// Las horas sin ítem usan el pago promedio ponderado del proyecto. (La tarifa es lo que se PAGA al
+// consultor, no lo que se cobra al cliente: el ingreso es el presupuesto neto del proyecto.)
+export function laborCost(entries: EntryLite[], items: ItemLite[], fallbackRate: number): number {
   const rateById = new Map(items.map((i) => [i.id, i.hourlyRate]));
-  return entries
-    .filter((e) => e.billable)
-    .reduce((sum, e) => sum + e.hours * (e.budgetItemId ? (rateById.get(e.budgetItemId) ?? fallbackRate) : fallbackRate), 0);
+  return entries.reduce(
+    (sum, e) => sum + e.hours * (e.budgetItemId ? (rateById.get(e.budgetItemId) ?? fallbackRate) : fallbackRate),
+    0
+  );
+}
+
+// Margen de contribución = presupuesto neto − costo de honorarios. Es lo que el proyecto aporta
+// a los gastos fijos (no es utilidad: aún no se descuentan los gastos fijos).
+export function contribution(budgetAmount: number, cost: number) {
+  const margin = budgetAmount - cost;
+  return { margin, pct: budgetAmount > 0 ? (margin / budgetAmount) * 100 : 0 };
 }
 
 export function hoursByItem(entries: EntryLite[]): Map<string | null, number> {
